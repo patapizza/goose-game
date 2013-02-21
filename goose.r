@@ -21,7 +21,6 @@ BACK_2 <- 3
 markovDec <- function(board, cycle = FALSE) {
     dice <- vector("numeric", length = 15)
     esp <- vector("numeric", length = 15)
-    v <- vector("numeric", length = 15)
     # building board shape
     neighbors <- array(list(), 15)
     neighbors[1] <- 2
@@ -40,39 +39,43 @@ markovDec <- function(board, cycle = FALSE) {
     neighbors[14] <- 11
     neighbors[15] <- 11
     # initializing values for recursive computations
-    for (i in seq_along(v))
-        v[i] <- 1
-    v[11] <- -1 # goal reward
+    for (i in seq_along(esp))
+        esp[i] <- 1
+    esp[11] <- -1 # goal reward
     # computing actual values using value-iteration algorithm
     for (k in 1:15) # getting to convergence
-        for (i in c(10, 15, 9, 8, 14, 7, 6, 13, 5, 4, 12, 3, 2, 1))
-            v[i] <- if (length(neighbors[[i]]) == 1)
-                        min(cost(SAFE, board[i], i) + 0.5 * v[i] + 0.5 * v[neighbors[[i]][[1]]],
-                            if (length(neighbors[[neighbors[[i]][[1]]]]) == 1)
-                                cost(RISKY, board[i], i) + 1/3 * v[i] + 1/3 * v[neighbors[[i]][[1]]] + 1/3 * v[neighbors[[neighbors[[i]][[1]]]][[1]]]
-                            else
-                                cost(RISKY, board[i], i) + 1/3 * v[i] + 1/3 * v[neighbors[[i]][[1]]] + 1/3 * (0.5 * v[neighbors[[neighbors[[i]][[1]]]][[1]]] + 0.5 * v[neighbors[[neighbors[[i]][[1]]]][[2]]])
-                           )
-                    else
-                        min(cost(SAFE, board[i], i) + 0.5 * v[i] + 0.5 * (0.5 * v[neighbors[[i]][[1]]] + 0.5 * v[neighbors[[i]][[2]]]),
-                            cost(RISKY, board[i], i) + 1/3 * v[i] + 1/3 * (0.5 * v[neighbors[[i]][[1]]] + 0.5 * v[neighbors[[i]][[2]]]) + 1/3 * (0.5 * v[neighbors[[neighbors[[i]][[1]]]][[1]]] + 0.5 * v[neighbors[[neighbors[[i]][[2]]]][[1]]]))
-    print(v)
-    # @TODO: argmin to pick the best action for each square
-    for (i in seq_along(board)) {
-        dice[i] <- 0
-        esp[i] <- 42
-    }
+        for (i in c(10, 15, 9, 8, 14, 7, 6, 13, 5, 4, 12, 3, 2, 1)) {
+            esp_safe <- cost(SAFE, board[i], i) + 0.5 * esp[i] + 0.5 * if (length(neighbors[[i]]) == 1)
+                                                                       esp[neighbors[[i]][[1]]]
+                                                                   else
+                                                                       (0.5 * esp[neighbors[[i]][[1]]] + 0.5 * esp[neighbors[[i]][[2]]])
+            esp_risky <- cost(RISKY, board[i], i) + esp[i] / 3 + if (length(neighbors[[i]]) == 1)
+                                                                 esp[neighbors[[i]][[1]]] / 3 + if (length(neighbors[[neighbors[[i]][[1]]]]) == 1)
+                                                                                                  esp[neighbors[[neighbors[[i]][[1]]]][[1]]] / 3
+                                                                                              else
+                                                                                                  (0.5 * esp[neighbors[[neighbors[[i]][[1]]]][[1]]] + 0.5 * esp[neighbors[[neighbors[[i]][[1]]]][[2]]]) / 3
+                                                             else
+                                                                 (0.5 * esp[neighbors[[i]][[1]]] + 0.5 * esp[neighbors[[i]][[2]]]) / 3 + (0.5 * esp[neighbors[[neighbors[[i]][[1]]]][[1]]] + 0.5 * esp[neighbors[[neighbors[[i]][[2]]]][[1]]]) / 3
+            if (esp_safe <= esp_risky) {
+                dice[i] <- SAFE
+                esp[i] <- esp_safe
+            }
+            else {
+                dice[i] <- RISKY
+                esp[i] <- esp_risky
+            }
+        }
     return(cbind(esp, dice))
 }
 
 cost <- function(action, s_type, s_pos) {
     return (if (action == SAFE || s_type == NORMAL)
                 1
-            else # RESTART for now
+            else # only RESTART traps for now
                 s_pos)
 }
 
-liste <- c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+liste <- c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1)
 v <- markovDec(liste)
 Espe <- v[, 1]
 De <- v[, 2]
