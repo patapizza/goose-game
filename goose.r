@@ -22,6 +22,25 @@ markovDec <- function(board, cycle = FALSE) {
     dice <- vector("numeric", length = 15)
     esp <- vector("numeric", length = 15)
     # building board shape
+    # TODO: do that automatically; build shape for any board
+    # previous states (needed for traps BACK_2)
+    back_2 <- array(list(), 15)
+    back_2[1] <- 1 # no cycle for now
+    back_2[2] <- 1
+    back_2[3] <- 1
+    back_2[4] <- 2
+    back_2[5] <- 3
+    back_2[6] <- 4
+    back_2[7] <- 5
+    back_2[8] <- 6
+    back_2[9] <- 7
+    back_2[10] <- 8
+    back_2[11] <- 9
+    back_2[12] <- 2
+    back_2[13] <- 4
+    back_2[14] <- 6
+    back_2[15] <- 8
+    # following states
     neighbors <- array(list(), 15)
     neighbors[1] <- 2
     neighbors[2] <- 3
@@ -41,21 +60,22 @@ markovDec <- function(board, cycle = FALSE) {
     # initializing values for recursive computations
     for (i in seq_along(esp))
         esp[i] <- 1
-    esp[11] <- -1 # goal reward
+    esp[11] <- 0 # goal reward
     # computing actual values using value-iteration algorithm
-    for (k in 1:15) # getting to convergence
+    repeat { # converging
+        prev_esp = esp[1]
         for (i in c(10, 15, 9, 8, 14, 7, 6, 13, 5, 4, 12, 3, 2, 1)) {
-            esp_safe <- cost(SAFE, board[i], i) + 0.5 * esp[i] + 0.5 * if (length(neighbors[[i]]) == 1)
+            esp_safe <- 1 + 0.5 * esp[i] + 0.5 * if (length(neighbors[[i]]) == 1)
                                                                        esp[neighbors[[i]][[1]]]
                                                                    else
                                                                        (0.5 * esp[neighbors[[i]][[1]]] + 0.5 * esp[neighbors[[i]][[2]]])
-            esp_risky <- cost(RISKY, board[i], i) + esp[i] / 3 + if (length(neighbors[[i]]) == 1)
-                                                                 esp[neighbors[[i]][[1]]] / 3 + if (length(neighbors[[neighbors[[i]][[1]]]]) == 1)
-                                                                                                  esp[neighbors[[neighbors[[i]][[1]]]][[1]]] / 3
+            esp_risky <- 1 + exp_cost(esp, back_2, board, i) / 3 + if (length(neighbors[[i]]) == 1)
+                                                                 exp_cost(esp, back_2, board, neighbors[[i]][[1]]) / 3 + if (length(neighbors[[neighbors[[i]][[1]]]]) == 1)
+                                                                                                  exp_cost(esp, back_2, board, neighbors[[neighbors[[i]][[1]]]][[1]]) / 3
                                                                                               else
-                                                                                                  (0.5 * esp[neighbors[[neighbors[[i]][[1]]]][[1]]] + 0.5 * esp[neighbors[[neighbors[[i]][[1]]]][[2]]]) / 3
+                                                                                                  (0.5 * exp_cost(esp, back_2, board, neighbors[[neighbors[[i]][[1]]]][[1]]) + 0.5 * exp_cost(esp, back_2, board, neighbors[[neighbors[[i]][[1]]]][[2]])) / 3
                                                              else
-                                                                 (0.5 * esp[neighbors[[i]][[1]]] + 0.5 * esp[neighbors[[i]][[2]]]) / 3 + (0.5 * esp[neighbors[[neighbors[[i]][[1]]]][[1]]] + 0.5 * esp[neighbors[[neighbors[[i]][[2]]]][[1]]]) / 3
+                                                                 (0.5 * exp_cost(esp, back_2, board, neighbors[[i]][[1]]) + 0.5 * exp_cost(esp, back_2, board, neighbors[[i]][[2]])) / 3 + (0.5 * exp_cost(esp, back_2, board, neighbors[[neighbors[[i]][[1]]]][[1]]) + 0.5 * exp_cost(esp, back_2, board, neighbors[[neighbors[[i]][[2]]]][[1]])) / 3
             if (esp_safe <= esp_risky) {
                 dice[i] <- SAFE
                 esp[i] <- esp_safe
@@ -65,17 +85,23 @@ markovDec <- function(board, cycle = FALSE) {
                 esp[i] <- esp_risky
             }
         }
+        if (prev_esp == esp[1])
+            break
+    }
     return(cbind(esp, dice))
 }
 
-cost <- function(action, s_type, s_pos) {
-    return (if (action == SAFE || s_type == NORMAL)
-                1
-            else # only RESTART traps for now
-                s_pos)
+exp_cost <- function(esp, back_2, board, s) {
+    return (if (board[s] == NORMAL || board[s] == JAIL) # TODO: add 1/3 to cost (if/for each?) neighboring jail square
+                esp[s]
+            else if (board[s] == BACK_2)
+                esp[back_2[[s]]]
+            else
+                esp[1]) # starting square
 }
 
-liste <- c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1)
+
+liste <- c(0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0)
 v <- markovDec(liste)
 Espe <- v[, 1]
 De <- v[, 2]
