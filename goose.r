@@ -66,16 +66,33 @@ markovDec <- function(board, cycle = FALSE) {
         prev_esp = esp[1]
         for (i in c(10, 15, 9, 8, 14, 7, 6, 13, 5, 4, 12, 3, 2, 1)) {
             esp_safe <- 1 + 0.5 * esp[i] + 0.5 * if (length(neighbors[[i]]) == 1)
-                                                                       esp[neighbors[[i]][[1]]]
-                                                                   else
-                                                                       (0.5 * esp[neighbors[[i]][[1]]] + 0.5 * esp[neighbors[[i]][[2]]])
+                                                     esp[neighbors[[i]][[1]]]
+                                                 else
+                                                     (0.5 * esp[neighbors[[i]][[1]]] + 0.5 * esp[neighbors[[i]][[2]]])
             esp_risky <- 1 + exp_cost(esp, back_2, board, i) / 3 + if (length(neighbors[[i]]) == 1)
-                                                                 exp_cost(esp, back_2, board, neighbors[[i]][[1]]) / 3 + if (length(neighbors[[neighbors[[i]][[1]]]]) == 1)
-                                                                                                  exp_cost(esp, back_2, board, neighbors[[neighbors[[i]][[1]]]][[1]]) / 3
-                                                                                              else
-                                                                                                  (0.5 * exp_cost(esp, back_2, board, neighbors[[neighbors[[i]][[1]]]][[1]]) + 0.5 * exp_cost(esp, back_2, board, neighbors[[neighbors[[i]][[1]]]][[2]])) / 3
-                                                             else
-                                                                 (0.5 * exp_cost(esp, back_2, board, neighbors[[i]][[1]]) + 0.5 * exp_cost(esp, back_2, board, neighbors[[i]][[2]])) / 3 + (0.5 * exp_cost(esp, back_2, board, neighbors[[neighbors[[i]][[1]]]][[1]]) + 0.5 * exp_cost(esp, back_2, board, neighbors[[neighbors[[i]][[2]]]][[1]])) / 3
+                                                                       exp_cost(esp, back_2, board, neighbors[[i]][[1]]) / 3 + exp_cost(esp, back_2, board, neighbors[[neighbors[[i]][[1]]]][[1]]) / 3
+                                                                   else
+                                                                       (0.5 * exp_cost(esp, back_2, board, neighbors[[i]][[1]]) + 0.5 * exp_cost(esp, back_2, board, neighbors[[i]][[2]])) / 3 + (0.5 * exp_cost(esp, back_2, board, neighbors[[neighbors[[i]][[1]]]][[1]]) + 0.5 * exp_cost(esp, back_2, board, neighbors[[neighbors[[i]][[2]]]][[1]])) / 3
+            # handling jails
+            jails <- 0
+            if (length(neighbors[[i]]) == 1) {
+                if (board[neighbors[[i]][[1]]] == JAIL)
+                    jails <- jails + 1
+                if (board[neighbors[[neighbors[[i]][[1]]]][[1]]] == JAIL)
+                    jails <- jails + 1
+                esp_risky <- esp_risky + jails / 3
+            }
+            else {
+                if (board[neighbors[[i]][[1]]] == JAIL)
+                    jails <- jails + 1
+                if (board[neighbors[[i]][[2]]] == JAIL)
+                    jails <- jails + 1
+                if (board[neighbors[[neighbors[[i]][[1]]]][[1]]] == JAIL)
+                    jails <- jails + 1
+                if (board[neighbors[[neighbors[[i]][[2]]]][[1]]] == JAIL)
+                    jails <- jails + 1
+                esp_risky <- esp_risky + jails / 6
+            }
             if (esp_safe <= esp_risky) {
                 dice[i] <- SAFE
                 esp[i] <- esp_safe
@@ -92,7 +109,7 @@ markovDec <- function(board, cycle = FALSE) {
 }
 
 exp_cost <- function(esp, back_2, board, s) {
-    return (if (board[s] == NORMAL || board[s] == JAIL) # TODO: add 1/3 to cost (if/for each?) neighboring jail square
+    return (if (board[s] == NORMAL || board[s] == JAIL)
                 esp[s]
             else if (board[s] == BACK_2)
                 esp[back_2[[s]]]
@@ -101,7 +118,7 @@ exp_cost <- function(esp, back_2, board, s) {
 }
 
 
-liste <- c(0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0)
+liste <- c(0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0)
 v <- markovDec(liste)
 Espe <- v[, 1]
 De <- v[, 2]
