@@ -15,7 +15,7 @@ BACK_2 <- 3
 #            type 1: back to square #1
 #            type 2: await one turn (jail)
 #            type 3: go two squares back
-#   cycle: whether or not the board is a cycle
+#   cycle: whether or not the board is a full cycle
 # @out:
 #   a 2-col matrix containing the esperance vector and the dice choices' vector
 markovDec <- function(board, cycle = FALSE) {
@@ -25,7 +25,7 @@ markovDec <- function(board, cycle = FALSE) {
     # TODO: do that automatically; build shape for any board
     # previous states (needed for traps BACK_2)
     back_2 <- array(list(), 15)
-    back_2[1] <- 1 # no cycle for now
+    back_2[1] <- if (cycle) 10 else 1
     back_2[2] <- 1
     back_2[3] <- 1
     back_2[4] <- 2
@@ -52,7 +52,7 @@ markovDec <- function(board, cycle = FALSE) {
     neighbors[8] <- 9
     neighbors[[9]] <- c(10, 15)
     neighbors[10] <- 11
-    neighbors[11] <- 11 # no cycle for now
+    neighbors[11] <- if (cycle) 1 else 11
     neighbors[12] <- 11
     neighbors[13] <- 11
     neighbors[14] <- 11
@@ -63,7 +63,7 @@ markovDec <- function(board, cycle = FALSE) {
     esp[11] <- 0 # goal reward
     # computing actual values using value-iteration algorithm
     repeat { # converging
-        prev_esp = esp[1]
+        prev_esp <- esp[1]
         for (i in c(10, 15, 9, 8, 14, 7, 6, 13, 5, 4, 12, 3, 2, 1)) {
             esp_safe <- 1 + 0.5 * esp[i] + 0.5 * if (length(neighbors[[i]]) == 1)
                                                      esp[neighbors[[i]][[1]]]
@@ -119,7 +119,7 @@ exp_cost <- function(esp, back_2, board, s) {
 
 
 liste <- c(0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0)
-v <- markovDec(liste)
+v <- markovDec(liste, TRUE)
 Espe <- v[, 1]
 De <- v[, 2]
 print(Espe)
