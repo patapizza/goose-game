@@ -20,29 +20,36 @@ BACK_2 <- 3
 # @out:
 #   a 2-col matrix containing the esperance vector and the dice choices' vector
 markovDec <- function(board, cycle = FALSE) {
-    dice <- vector("numeric", length = 15)
-    esp <- vector("numeric", length = 15)
     # building board shape
-    if (typeof(board) == "list")
+    if (typeof(board) == "list") {
         build_board_from_graph(board, cycle)
-    else
+        start <- board[[3]]
+        goal <- board[[4]]
+        board <- board[[1]]
+    }
+    else {
         build_default_board(board, cycle)
+        start <- 1
+        goal <- 11
+    }
+    dice <- vector("numeric", length = length(board))
+    esp <- vector("numeric", length = length(board))
     # initializing values for recursive computations
     for (i in seq_along(esp))
         esp[i] <- 1
-    esp[11] <- 0 # goal reward
+    esp[goal] <- 0 # goal reward
     # computing actual values using value-iteration algorithm
     repeat { # converging
         prev_esp <- esp[1]
-        for (i in c(10, 15, 9, 8, 14, 7, 6, 13, 5, 4, 12, 3, 2, 1)) {
+        for (i in c(start:(goal - 1), (goal + 1):length(board))) {
             esp_safe <- 1 + 0.5 * esp[i] + 0.5 * if (length(neighbors[[i]]) == 1)
                                                      esp[neighbors[[i]][[1]]]
                                                  else
                                                      (0.5 * esp[neighbors[[i]][[1]]] + 0.5 * esp[neighbors[[i]][[2]]])
-            esp_risky <- 1 + exp_cost(esp, board, i) / 3 + if (length(neighbors[[i]]) == 1)
-                                                                       exp_cost(esp, board, neighbors[[i]][[1]]) / 3 + exp_cost(esp, board, neighbors[[neighbors[[i]][[1]]]][[1]]) / 3
+            esp_risky <- 1 + exp_cost(esp, board, i, start) / 3 + if (length(neighbors[[i]]) == 1)
+                                                                       exp_cost(esp, board, neighbors[[i]][[1]], start) / 3 + exp_cost(esp, board, neighbors[[neighbors[[i]][[1]]]][[1]], start) / 3
                                                                    else
-                                                                       (0.5 * exp_cost(esp, board, neighbors[[i]][[1]]) + 0.5 * exp_cost(esp, board, neighbors[[i]][[2]])) / 3 + (0.5 * exp_cost(esp, board, neighbors[[neighbors[[i]][[1]]]][[1]]) + 0.5 * exp_cost(esp, board, neighbors[[neighbors[[i]][[2]]]][[1]])) / 3
+                                                                       (0.5 * exp_cost(esp, board, neighbors[[i]][[1]], start) + 0.5 * exp_cost(esp, board, neighbors[[i]][[2]], start)) / 3 + (0.5 * exp_cost(esp, board, neighbors[[neighbors[[i]][[1]]]][[1]], start) + 0.5 * exp_cost(esp, board, neighbors[[neighbors[[i]][[2]]]][[1]], start)) / 3
             # handling jails
             jails <- 0
             if (length(neighbors[[i]]) == 1) {
@@ -126,15 +133,16 @@ build_board_from_graph <- function(graph, cycle) {
 #   _esp: the expected cost of the square s
 #   _board: the board containing the squares' type
 #   _s: a square
+#   _start: the starting square
 # @out:
 #   the expected cost according to the type of _s
-exp_cost <- function(esp, board, s) {
+exp_cost <- function(esp, board, s, start) {
     return (if (board[s] == NORMAL || board[s] == JAIL)
                 esp[s]
             else if (board[s] == BACK_2)
                 exp_cost(esp, board, back_2[[s]]) # trap leading to another trap
             else
-                esp[1]) # starting square
+                esp[start]) # starting square
 }
 
 # Simulates a game.

@@ -1,7 +1,7 @@
 goose-game
 ==========
 
-Goose game implementation using Markov decision processes (value-iteration variant)
+Goose game (also called 'Snakes and Ladders') implementation using Markov decision processes (value-iteration variant)
 
 ## Author
 
