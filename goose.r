@@ -10,11 +10,12 @@ BACK_2 <- 3
 
 # The Markov decision process
 # @in:
-#   _board: a list of square types:
+#   _board: a vector of square types:
 #            type 0: normal (no trap)
 #            type 1: back to square #1
 #            type 2: await one turn (jail)
 #            type 3: go two squares back
+#           OR a graph
 #   _cycle: whether or not the board is a full circle
 # @out:
 #   a 2-col matrix containing the esperance vector and the dice choices' vector
@@ -22,7 +23,10 @@ markovDec <- function(board, cycle = FALSE) {
     dice <- vector("numeric", length = 15)
     esp <- vector("numeric", length = 15)
     # building board shape
-    build_board(cycle)
+    if (typeof(board) == "list")
+        build_board_from_graph(board, cycle)
+    else
+        build_default_board(board, cycle)
     # initializing values for recursive computations
     for (i in seq_along(esp))
         esp[i] <- 1
@@ -74,48 +78,47 @@ markovDec <- function(board, cycle = FALSE) {
     return(cbind(esp, dice))
 }
 
-# Builds the board shape
+# Builds the default board shape
 # @in:
+#   _v: the square types' vector
+#   _cycle: whether or not it's a full circle
+build_default_board <- function(v, cycle) {
+    e <- list(c(1, 2), c(2, 3), c(3, 4), c(3, 12), c(4, 5), c(5, 6), c(5, 13), c(6, 7), c(7, 8), c(7, 14),
+              c(8, 9), c(9, 10), c(9, 15), c(10, 11), c(12, 11), c(13, 11), c(14, 11), c(15, 11))
+    build_board_from_graph(list(v, e, 1, 11), cycle)
+}
+
+# Builds a board from a graph
+# @in:
+#   _graph: a (square types' vector, edges, starting node, goal node) list
 #   _cycle: whether or not it's a full circle
 # @post:
 #   _back_2: contains the previous states for each square
 #   _neighbors: contains the following states for each square
-build_board <- function(cycle) {
-    # TODO: do that automatically; build shape for any board
-    # previous states (needed for traps BACK_2)
-    back_2 <<- array(list(), 15)
-    back_2[1] <<- if (cycle) 10 else 1
-    back_2[2] <<- 1
-    back_2[3] <<- 1
-    back_2[4] <<- 2
-    back_2[5] <<- 3
-    back_2[6] <<- 4
-    back_2[7] <<- 5
-    back_2[8] <<- 6
-    back_2[9] <<- 7
-    back_2[10] <<- 8
-    back_2[11] <<- 9
-    back_2[12] <<- 2
-    back_2[13] <<- 4
-    back_2[14] <<- 6
-    back_2[15] <<- 8
-    # following states
-    neighbors <<- array(list(), 15)
-    neighbors[1] <<- 2
-    neighbors[2] <<- 3
-    neighbors[[3]] <<- c(4, 12)
-    neighbors[4] <<- 5
-    neighbors[[5]] <<- c(6, 13)
-    neighbors[6] <<- 7
-    neighbors[[7]] <<- c(8, 14)
-    neighbors[8] <<- 9
-    neighbors[[9]] <<- c(10, 15)
-    neighbors[10] <<- 11
-    neighbors[11] <<- if (cycle) 1 else 11
-    neighbors[12] <<- 11
-    neighbors[13] <<- 11
-    neighbors[14] <<- 11
-    neighbors[15] <<- 11
+build_board_from_graph <- function(graph, cycle) {
+    # TODO: sorting routine so that it accepts edges in any order
+    v <- graph[[1]]
+    e <- graph[[2]]
+    start <- graph[[3]]
+    goal <- graph[[4]]
+    neighbors <<- array(list(), length(v))
+    back_2 <<- vector("numeric", length = length(v))
+    for (i in seq_along(e))
+        neighbors[[e[[i]][[1]]]] <<- c(neighbors[[e[[i]][[1]]]], e[[i]][[2]])
+    neighbors[[goal]] <<- if (cycle) start else goal
+    back_2_start <- length(v)
+    for (i in seq_along(e)) {
+        if (neighbors[[e[[i]][[2]]]][[1]] != e[[i]][[2]])
+            back_2[[neighbors[[e[[i]][[2]]]][[1]]]] <<- e[[i]][[1]]
+        if (length(neighbors[[e[[i]][[2]]]]) == 2)
+            back_2[[neighbors[[e[[i]][[2]]]][[2]]]] <<- e[[i]][[1]]
+        if (e[[i]][[2]] == goal && e[[i]][[1]] < back_2_start)
+            back_2_start <- e[[i]][[1]]
+    }
+    back_2[[start]] <<- if (cycle) back_2_start else start
+    back_2[[neighbors[[start]][[1]]]] <<- if (cycle) goal else start
+    if (length(neighbors[[start]]) == 2)
+        back_2[[neighbors[[start]][[2]]]] <<- if (cycle) goal else start
 }
 
 # Returns the expected cost given a square type.
@@ -185,14 +188,14 @@ play_game <- function(board, dice) {
 # Tests routine.
 # @in:
 #   _boards: boards to simulate
-#   _cycles: whether or not the boards are full circled
+#   _cycle: whether or not the boards are full circled
 #   _games: number of games to simulate
 # @post:
 #   Prints out the mean number of throws for different strategies.
-run_tests <- function(boards, cycles, games = 10000) {
+run_tests <- function(boards, cycle, games = 10000) {
     for (i in 1:length(boards[1, ])) {
         cat("Board #", i, "\n")
-        v <- markovDec(boards[, i], cycles)
+        v <- markovDec(boards[, i], cycle)
         exp <- v[, 1]
         mdp_dice <- v[, 2]
         cat("Expected costs: ", exp, "\nDecisions: ", mdp_dice, "\n")
@@ -215,28 +218,9 @@ run_tests <- function(boards, cycles, games = 10000) {
     }
 }
 
-gen_board <- function() {
-    board <- sample(0:3, 15, TRUE)
-    repeat {
-        board[1] <- 0
-        board[11] <- 0
-        if (playable(board))
-            break
-        board <- sample(0:3, 15, TRUE)
-    }
-    return(board)
-}
-
-playable <- function(board) {
-    for (i in 1:(length(board) - 1))
-        if (board[i] == RESTART && board[i + 1] == RESTART)
-            return(FALSE)
-    return(TRUE)
-}
-
 # Usage sample:
 # liste <- c(0, 2, 0, 1, 0, 3, 0, 3, 0, 3, 0, 2, 2, 0, 0)
-# v <- markovDec(liste, FALSE)
+# v <- markovDec(liste)
 # Espe <- v[, 1]
 # De <- v[, 2]
 # print(Espe)
@@ -245,9 +229,7 @@ playable <- function(board) {
 boards <- cbind(c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 c(0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0),
                 c(0, 0, 2, 0, 0, 2, 2, 0, 2, 0, 0, 0, 0, 0, 2),
-                c(0, 3, 0, 3, 3, 0, 0, 3, 0, 3, 0, 0, 3, 0, 0),
-                gen_board(),
-                gen_board())
+                c(0, 3, 0, 3, 3, 0, 0, 3, 0, 3, 0, 0, 3, 0, 0))
 
 run_tests(boards, TRUE)
 run_tests(boards, FALSE)
