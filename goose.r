@@ -10,12 +10,12 @@ BACK_2 <- 3
 
 # The Markov decision process
 # @in:
-#   board: a list of square types:
+#   _board: a list of square types:
 #            type 0: normal (no trap)
 #            type 1: back to square #1
 #            type 2: await one turn (jail)
 #            type 3: go two squares back
-#   cycle: whether or not the board is a full circle
+#   _cycle: whether or not the board is a full circle
 # @out:
 #   a 2-col matrix containing the esperance vector and the dice choices' vector
 markovDec <- function(board, cycle = FALSE) {
@@ -76,10 +76,10 @@ markovDec <- function(board, cycle = FALSE) {
 
 # Builds the board shape
 # @in:
-#   cycle: whether or not it's a full circle
+#   _cycle: whether or not it's a full circle
 # @post:
-#   back_2 contains the previous states for each square
-#   neighbors contains the following states for each square
+#   _back_2: contains the previous states for each square
+#   _neighbors: contains the following states for each square
 build_board <- function(cycle) {
     # TODO: do that automatically; build shape for any board
     # previous states (needed for traps BACK_2)
@@ -129,7 +129,7 @@ exp_cost <- function(esp, board, s) {
     return (if (board[s] == NORMAL || board[s] == JAIL)
                 esp[s]
             else if (board[s] == BACK_2)
-                esp[back_2[[s]]]
+                exp_cost(esp, board, back_2[[s]]) # trap leading to another trap
             else
                 esp[1]) # starting square
 }
@@ -145,9 +145,8 @@ play_game <- function(board, dice) {
     throws <- 0
     repeat {
         throws <- throws + 1
-        print(square)
         choice <- dice[square]
-        square <- if (choice == SAFE) {
+        square <- if (choice == SAFE)
                       if (sample(0:1, 1))
                           square
                       else
@@ -155,7 +154,6 @@ play_game <- function(board, dice) {
                               neighbors[[square]][[1]]
                           else
                               neighbors[[square]][[2]]
-                  }
                   else {
                       x <- sample(0:2, 1)
                       if (x == 0)
@@ -171,14 +169,13 @@ play_game <- function(board, dice) {
                           else
                               neighbors[[neighbors[[square]][[2]]]][[1]]
                   }
-        if (choice == RISKY) {
+        if (choice == RISKY)
             if (board[square] == RESTART)
                 square <- 1
             else if (board[square] == BACK_2)
-                square <- back_2[square]
+                square <- back_2[[square]]
             else if (board[square] == JAIL)
                 throws <- throws + 1
-        }
         if (square == 11)
             break
     }
@@ -186,10 +183,14 @@ play_game <- function(board, dice) {
 }
 
 
-liste <- c(0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0)
+liste <- c(0, 2, 0, 1, 0, 3, 0, 3, 0, 3, 0, 2, 2, 0, 0)
 v <- markovDec(liste, TRUE)
 Espe <- v[, 1]
 De <- v[, 2]
 print(Espe)
 print(De)
 print(play_game(liste, De))
+safe <- c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+risky <- c(2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2)
+print(play_game(liste, safe))
+print(play_game(liste, risky))
