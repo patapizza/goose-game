@@ -182,15 +182,72 @@ play_game <- function(board, dice) {
     return (throws)
 }
 
+# Tests routine.
+# @in:
+#   _boards: boards to simulate
+#   _cycles: whether or not the boards are full circled
+#   _games: number of games to simulate
+# @post:
+#   Prints out the mean number of throws for different strategies.
+run_tests <- function(boards, cycles, games = 10000) {
+    for (i in 1:length(boards[1, ])) {
+        cat("Board #", i, "\n")
+        v <- markovDec(boards[, i], cycles)
+        exp <- v[, 1]
+        mdp_dice <- v[, 2]
+        cat("Expected costs: ", exp, "\nDecisions: ", mdp_dice, "\n")
+        safe_dice <- c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+        risky_dice <- c(2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2)
+        mdp_mean <- 0
+        safe_mean <- 0
+        risky_mean <- 0
+        random_mean <- 0
+        for (j in 1:games) {
+            safe_mean <- safe_mean + play_game(boards[, i], safe_dice)
+            risky_mean <- risky_mean + play_game(boards[, i], risky_dice)
+            random_mean <- random_mean + play_game(boards[, i], sample(1:2, 15, TRUE))
+            mdp_mean <- mdp_mean + play_game(boards[, i], mdp_dice)
+        }
+        cat("Mean number of throws for safe dice: ", safe_mean / games, "\n",
+            "Mean number of throws for risky dice: ", risky_mean / games, "\n",
+            "Mean number of throws for random strategy: ", random_mean / games, "\n",
+            "Mean number of throws for Markov decision process: ", mdp_mean / games, "\n")
+    }
+}
 
-liste <- c(0, 2, 0, 1, 0, 3, 0, 3, 0, 3, 0, 2, 2, 0, 0)
-v <- markovDec(liste, TRUE)
-Espe <- v[, 1]
-De <- v[, 2]
-print(Espe)
-print(De)
-print(play_game(liste, De))
-safe <- c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
-risky <- c(2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2)
-print(play_game(liste, safe))
-print(play_game(liste, risky))
+gen_board <- function() {
+    board <- sample(0:3, 15, TRUE)
+    repeat {
+        board[1] <- 0
+        board[11] <- 0
+        if (playable(board))
+            break
+        board <- sample(0:3, 15, TRUE)
+    }
+    return(board)
+}
+
+playable <- function(board) {
+    for (i in 1:(length(board) - 1))
+        if (board[i] == RESTART && board[i + 1] == RESTART)
+            return(FALSE)
+    return(TRUE)
+}
+
+# Usage sample:
+# liste <- c(0, 2, 0, 1, 0, 3, 0, 3, 0, 3, 0, 2, 2, 0, 0)
+# v <- markovDec(liste, FALSE)
+# Espe <- v[, 1]
+# De <- v[, 2]
+# print(Espe)
+# print(De)
+
+boards <- cbind(c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                c(0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0),
+                c(0, 0, 2, 0, 0, 2, 2, 0, 2, 0, 0, 0, 0, 0, 2),
+                c(0, 3, 0, 3, 3, 0, 0, 3, 0, 3, 0, 0, 3, 0, 0),
+                gen_board(),
+                gen_board())
+
+run_tests(boards, TRUE)
+run_tests(boards, FALSE)
