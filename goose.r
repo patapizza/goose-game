@@ -140,7 +140,7 @@ exp_cost <- function(esp, board, s, start) {
     return (if (board[s] == NORMAL || board[s] == JAIL)
                 esp[s]
             else if (board[s] == BACK_2)
-                exp_cost(esp, board, back_2[[s]]) # trap leading to another trap
+                exp_cost(esp, board, back_2[[s]], start) # trap leading to another trap
             else
                 esp[start]) # starting square
 }
@@ -219,12 +219,14 @@ run_tests <- function(boards, cycle, games = 10000) {
             random_mean <- random_mean + play_game(boards[, i], sample(1:2, 15, TRUE))
             mdp_mean <- mdp_mean + play_game(boards[, i], mdp_dice)
         }
-        cat("Mean number of throws for safe dice: ", safe_mean / games, "\n",
-            "Mean number of throws for risky dice: ", risky_mean / games, "\n",
+        cat("Mean number of throws using safe dice: ", safe_mean / games, "\n",
+            "Mean number of throws using risky dice: ", risky_mean / games, "\n",
             "Mean number of throws for random strategy: ", random_mean / games, "\n",
             "Mean number of throws for Markov decision process: ", mdp_mean / games, "\n")
     }
 }
+
+options(warn = 1)
 
 # Usage sample:
 # liste <- c(0, 2, 0, 1, 0, 3, 0, 3, 0, 3, 0, 2, 2, 0, 0)
@@ -234,10 +236,14 @@ run_tests <- function(boards, cycle, games = 10000) {
 # print(Espe)
 # print(De)
 
+# Running tests
 boards <- cbind(c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 c(0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0),
                 c(0, 0, 2, 0, 0, 2, 2, 0, 2, 0, 0, 0, 0, 0, 2),
-                c(0, 3, 0, 3, 3, 0, 0, 3, 0, 3, 0, 0, 3, 0, 0))
+                c(0, 3, 0, 3, 3, 0, 0, 3, 0, 3, 0, 0, 3, 0, 0),
+                c(NORMAL, BACK_2, NORMAL, BACK_2, NORMAL, JAIL, NORMAL, RESTART, NORMAL, BACK_2, NORMAL, NORMAL, NORMAL, NORMAL, NORMAL),
+                c(NORMAL, NORMAL, NORMAL, RESTART, NORMAL, JAIL, RESTART, NORMAL, JAIL, NORMAL, NORMAL, BACK_2, NORMAL, JAIL, JAIL),
+                c(NORMAL, JAIL, JAIL, NORMAL, RESTART, NORMAL, NORMAL, BACK_2, BACK_2, NORMAL, NORMAL, NORMAL, RESTART, NORMAL, NORMAL))
 
-run_tests(boards, TRUE)
 run_tests(boards, FALSE)
+run_tests(boards, TRUE)
