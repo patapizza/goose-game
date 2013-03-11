@@ -102,8 +102,8 @@ build_default_board <- function(v, cycle) {
 # @post:
 #   _back_2: contains the previous states for each square
 #   _neighbors: contains the following states for each square
+# @TODO: sorting routine so that it accepts edges in any order
 build_board_from_graph <- function(graph, cycle) {
-    # TODO: sorting routine so that it accepts edges in any order
     v <- graph[[1]]
     e <- graph[[2]]
     start <- graph[[3]]
@@ -149,10 +149,12 @@ exp_cost <- function(esp, board, s, start) {
 # @in:
 #   _board: the board
 #   _dice: the dices to play for each square
+#   _start: the starting square
+#   _goal: the goal square
 # @out:
 #   _throws: the number of dice throws
-play_game <- function(board, dice) {
-    square <- 1
+play_game <- function(board, dice, start, goal) {
+    square <- start
     throws <- 0
     repeat {
         throws <- throws + 1
@@ -182,12 +184,12 @@ play_game <- function(board, dice) {
                   }
         if (choice == RISKY)
             if (board[square] == RESTART)
-                square <- 1
+                square <- start
             else if (board[square] == BACK_2)
                 square <- back_2[[square]]
             else if (board[square] == JAIL)
                 throws <- throws + 1
-        if (square == 11)
+        if (square == goal)
             break
     }
     return (throws)
@@ -200,6 +202,7 @@ play_game <- function(board, dice) {
 #   _games: number of games to simulate
 # @post:
 #   Prints out the mean number of throws for different strategies.
+# @TODO: handle generic boards (described by graph)
 run_tests <- function(boards, cycle, games = 10000) {
     for (i in 1:length(boards[1, ])) {
         cat("Board #", i, "\n")
@@ -214,10 +217,10 @@ run_tests <- function(boards, cycle, games = 10000) {
         risky_mean <- 0
         random_mean <- 0
         for (j in 1:games) {
-            safe_mean <- safe_mean + play_game(boards[, i], safe_dice)
-            risky_mean <- risky_mean + play_game(boards[, i], risky_dice)
-            random_mean <- random_mean + play_game(boards[, i], sample(1:2, 15, TRUE))
-            mdp_mean <- mdp_mean + play_game(boards[, i], mdp_dice)
+            safe_mean <- safe_mean + play_game(boards[, i], safe_dice, 1, 11)
+            risky_mean <- risky_mean + play_game(boards[, i], risky_dice, 1, 11)
+            random_mean <- random_mean + play_game(boards[, i], sample(1:2, 15, TRUE), 1, 11)
+            mdp_mean <- mdp_mean + play_game(boards[, i], mdp_dice, 1, 11)
         }
         cat("Mean number of throws using safe dice: ", safe_mean / games, "\n",
             "Mean number of throws using risky dice: ", risky_mean / games, "\n",
@@ -226,24 +229,22 @@ run_tests <- function(boards, cycle, games = 10000) {
     }
 }
 
-options(warn = 1)
-
 # Usage sample:
-# liste <- c(0, 2, 0, 1, 0, 3, 0, 3, 0, 3, 0, 2, 2, 0, 0)
-# v <- markovDec(liste)
-# Espe <- v[, 1]
-# De <- v[, 2]
-# print(Espe)
-# print(De)
+liste <- c(0, 2, 0, 1, 0, 3, 0, 3, 0, 3, 0, 2, 2, 0, 0)
+v <- markovDec(liste)
+Espe <- v[, 1]
+De <- v[, 2]
+print(Espe)
+print(De)
 
 # Running tests
-boards <- cbind(c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                c(0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0),
-                c(0, 0, 2, 0, 0, 2, 2, 0, 2, 0, 0, 0, 0, 0, 2),
-                c(0, 3, 0, 3, 3, 0, 0, 3, 0, 3, 0, 0, 3, 0, 0),
-                c(NORMAL, BACK_2, NORMAL, BACK_2, NORMAL, JAIL, NORMAL, RESTART, NORMAL, BACK_2, NORMAL, NORMAL, NORMAL, NORMAL, NORMAL),
-                c(NORMAL, NORMAL, NORMAL, RESTART, NORMAL, JAIL, RESTART, NORMAL, JAIL, NORMAL, NORMAL, BACK_2, NORMAL, JAIL, JAIL),
-                c(NORMAL, JAIL, JAIL, NORMAL, RESTART, NORMAL, NORMAL, BACK_2, BACK_2, NORMAL, NORMAL, NORMAL, RESTART, NORMAL, NORMAL))
+#boards <- cbind(c(NORMAL, NORMAL, NORMAL, NORMAL, NORMAL, NORMAL, NORMAL, NORMAL, NORMAL, NORMAL, NORMAL, NORMAL, NORMAL, NORMAL, NORMAL),
+#                c(NORMAL, RESTART, NORMAL, NORMAL, NORMAL, NORMAL, RESTART, NORMAL, NORMAL, RESTART, NORMAL, NORMAL, NORMAL, RESTART, NORMAL),
+#                c(NORMAL, NORMAL, JAIL, NORMAL, NORMAL, JAIL, JAIL, NORMAL, JAIL, NORMAL, NORMAL, NORMAL, NORMAL, NORMAL, JAIL),
+#                c(NORMAL, BACK_2, NORMAL, BACK_2, BACK_2, NORMAL, NORMAL, BACK_2, NORMAL, BACK_2, NORMAL, NORMAL, BACK_2, NORMAL, NORMAL),
+#                c(NORMAL, BACK_2, NORMAL, BACK_2, NORMAL, JAIL, NORMAL, RESTART, NORMAL, BACK_2, NORMAL, NORMAL, NORMAL, NORMAL, NORMAL),
+#                c(NORMAL, NORMAL, NORMAL, RESTART, NORMAL, JAIL, RESTART, NORMAL, JAIL, NORMAL, NORMAL, BACK_2, NORMAL, JAIL, JAIL),
+#                c(NORMAL, JAIL, JAIL, NORMAL, RESTART, NORMAL, NORMAL, BACK_2, BACK_2, NORMAL, NORMAL, NORMAL, RESTART, NORMAL, NORMAL))
 
-run_tests(boards, FALSE)
-run_tests(boards, TRUE)
+#run_tests(boards, FALSE)
+#run_tests(boards, TRUE)
